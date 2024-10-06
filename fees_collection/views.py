@@ -280,7 +280,7 @@ def upload_payments(request):
                 payment_method = str(row.get('Payment Method', '')).strip()
                 organization = str(row.get('Organization', '')).strip()
                 year = str(row.get('Year', '')).strip()
-
+                book_no = str(row.get('Book No', '')).strip()
                 # Convert amount to float and handle potential conversion errors
                 try:
                     amount = float(amount_str.replace(',', ''))  # Remove commas and convert to float
@@ -330,7 +330,8 @@ def upload_payments(request):
                         name=name,
                         payment_method=payment_method,
                         organization=organization,
-                        year=year
+                        year=year,
+                        book_no=book_no 
                     )
                     payment.save()
                     print(f"Saved payment: {payment}")  # Print saved payment info

@@ -45,13 +45,16 @@ class Student(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.admission_number})'
-
-
 class Payment(models.Model):
     RECEIPT_TYPE_CHOICES = [
         ('fee', 'Fee'),
         ('donation', 'Donation'),
         ('other', 'Other'),
+    ]
+
+    PAYMENT_METHOD_CHOICES = [
+        ('cash', 'Cash'),
+        ('online', 'Online'),
     ]
 
     book_no = models.CharField(max_length=10)
@@ -62,7 +65,7 @@ class Payment(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     receipt_type = models.CharField(max_length=15, choices=RECEIPT_TYPE_CHOICES, default='fee')
     name = models.CharField(max_length=255, null=True, blank=True)
-    payment_method = models.CharField(max_length=100, null=True, blank=True)
+    payment_method = models.CharField(max_length=100, choices=PAYMENT_METHOD_CHOICES, default='cash')
     organization = models.CharField(max_length=255, null=True, blank=True)
     year = models.CharField(max_length=4, null=True, blank=True)
 
