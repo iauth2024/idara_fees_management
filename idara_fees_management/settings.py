@@ -109,6 +109,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Additional settings for large uploads
 DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 
 
 ###########################################################################################################################
@@ -213,3 +214,8 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
 # # Default primary key field type
 # # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 # DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# #Additional settings for large uploads
+# DATA_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
+# FILE_UPLOAD_MAX_MEMORY_SIZE = 1024 * 1024 * 50  # 50 MB
+# DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000

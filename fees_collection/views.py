@@ -457,15 +457,17 @@ def receipt_number_input(request):
 from django.shortcuts import render, get_object_or_404
 from .models import Payment
 
+
+
 def print_receipt(request, receipt_no):
     # Retrieve the receipt using the provided receipt number
     receipt = get_object_or_404(Payment, receipt_no=receipt_no)
-    
+
     # Pass the receipt to the template
     context = {
         'receipt': receipt,
     }
-    
+
     return render(request, 'print_receipt.html', context)
 
 
