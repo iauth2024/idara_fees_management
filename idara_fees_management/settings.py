@@ -70,12 +70,20 @@ TEMPLATES = [
 WSGI_APPLICATION = 'idara_fees_management.wsgi.application'
 
 # Database
+# Database
+import os
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.environ.get('DB_NAME', 'al_ashraf_accounts'),
+        'USER': os.environ.get('DB_USER', 'al_ashraf_accounts_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'xH3Hsbz8axCpVMcFuUEGOK5xhD09dkH2'),
+        'HOST': os.environ.get('DB_HOST', 'dpg-crlrj9bv2p9s73e3b2ng-a.oregon-postgres.render.com'),
+        'PORT': os.environ.get('DB_PORT', '5432'),
     }
 }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
