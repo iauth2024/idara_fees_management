@@ -116,18 +116,19 @@
             <table>
                 <thead>
                     <tr>
-                        <th>Book Number</th> <!-- Added Book Number Header -->
+                        
                         <th>Receipt Number</th>
                         
                         <th>Amount</th>
                         <th>Date</th>
+                        
                         <th>Payment Done By</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for payment in payments %}
                     <tr>
-                        <td>{{ payment.book_no }}</td> <!-- Display Book Number -->
+                        
                         <td>{{ payment.receipt_no }}</td>
                         
                         <td>₹ {{ payment.amount|indian_number_format }}</td>

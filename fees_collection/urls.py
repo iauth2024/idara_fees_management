@@ -1,4 +1,4 @@
-from django.urls import include, path
+from django.urls import include, path,re_path 
 from django.contrib.auth import views as auth_views
 from . import views
 from .views import (
@@ -31,7 +31,7 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
 
     # Receipts and payments
-    path('print-receipt/<str:receipt_no>/', print_receipt, name='print_receipt'),
+    re_path(r'^print-receipt/(?P<receipt_no>.+)/$', print_receipt, name='print_receipt'),
     path('receipt-number/', receipt_number_input, name='receipt_number_input'),  # Receipt number input
     path('make_payment/', make_payment, name='make_payment'),
     path('payment_success/', payment_success, name='payment_success'),

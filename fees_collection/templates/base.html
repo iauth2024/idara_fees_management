@@ -18,7 +18,7 @@
     <meta name="theme-color" content="#ffffff">
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -28,76 +28,42 @@
             min-height: 100vh;
         }
 
-        .vertical-menu {
-            width: 250px;
+        .horizontal-menu {
             background-color: #343a40; /* Dark grey */
-            padding: 0;
+            padding: 10px 20px; /* Add some padding */
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            position: fixed;
-            height: 100%;
-            top: 0;
-            left: 0;
-            overflow-y: auto;
         }
 
-        .vertical-menu ul {
+        .horizontal-menu ul {
             list-style-type: none;
             margin: 0;
             padding: 0;
+            display: flex; /* Use flexbox for horizontal layout */
         }
 
-        .vertical-menu ul li {
-            position: relative;
+        .horizontal-menu ul li {
+            margin-right: 20px; /* Space between menu items */
         }
 
-        .vertical-menu ul li a {
+        .horizontal-menu ul li a {
             color: #ffffff; /* White */
             text-decoration: none;
-            padding: 15px 20px;
-            display: block;
+            padding: 10px 15px; /* Padding for links */
             font-weight: bold;
             transition: background-color 0.3s;
+            border-radius: 4px; /* Rounded corners for the links */
         }
 
-        .vertical-menu ul li a:hover {
-            background-color: #495057; /* Lighter grey */
-        }
-
-        .vertical-menu ul li ul {
-            display: none;
-            position: relative;
-            background-color: #6c757d; /* Medium grey */
-            padding: 0;
-            margin: 0;
-            list-style-type: none;
-        }
-
-        .vertical-menu ul li ul li {
-            display: block;
-        }
-
-        .vertical-menu ul li ul li a {
-            padding: 10px 20px;
-            white-space: nowrap;
-            color: #ffffff; /* White */
-            transition: background-color 0.3s;
-        }
-
-        .vertical-menu ul li ul li a:hover {
-            background-color: #495057; /* Lighter grey */
-        }
-
-        .vertical-menu ul li:hover ul {
-            display: block;
+        .horizontal-menu ul li a:hover {
+            background-color: #495057; /* Lighter grey on hover */
         }
 
         .content {
-            margin-left: 270px; /* Adjust according to the width of the vertical menu */
+            margin: 20px; /* Margin for the content area */
             padding: 30px;
             background: #ffffff; /* White */
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
         }
 
         h1 {
@@ -111,7 +77,7 @@
 </head>
 <body>
 
-    <div class="vertical-menu">
+    <div class="horizontal-menu">
         <ul>
             <li><a href="{% url 'homepage' %}">Home</a></li>
 
@@ -126,7 +92,7 @@
             <li><a href="{% url 'student_payment_report' %}">Fee Card</a></li>
             <li><a href="{% url 'user_payments' %}">My Entries</a></li>
             <li><a href="{% url 'reports' %}">Reports</a></li>
-            <li><a href="{% url 'student_receipt_list' %}">List Students with Receipts</a></li>
+            <!-- <li><a href="{% url 'student_receipt_list' %}">List Students with Receipts</a></li> -->
             <li><a href="{% url 'receipt_number_input' %}" class="print-receipt-button">Print Receipt</a></li>
         </ul>
     </div>

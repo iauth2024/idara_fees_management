@@ -1,3 +1,4 @@
+import datetime
 from django.http import HttpResponse
 from openpyxl import Workbook
 from django.db.models import Sum, F
@@ -67,7 +68,7 @@ class CustomPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Sum, F, Case, When, IntegerField
+from django.db.models import Sum, Count, F, Case, When, IntegerField
 
 @login_required
 @staff_member_required
@@ -75,15 +76,18 @@ def summary(request):
     selected_organization = request.GET.get('organization', '')
     selected_year = request.GET.get('year', '')
 
+    # Get distinct organizations and years from payments
     organizations = Payment.objects.values_list('organization', flat=True).distinct()
     years = Payment.objects.values_list('year', flat=True).distinct()
 
+    # Filter payments based on selected organization and year
     payments = Payment.objects.all()
     if selected_organization:
         payments = payments.filter(organization=selected_organization)
     if selected_year:
         payments = payments.filter(year=selected_year)
 
+    # Annotate students with total fee and total paid amount
     students = Student.objects.annotate(
         total_fee=F('monthly_fees') * 12,
         total_paid=Sum('payment__amount')
@@ -96,16 +100,43 @@ def summary(request):
         )
     )
 
+    # Calculate overall statistics
     total_students = students.count()
-    total_fees = students.aggregate(total=Sum(F('total_fee')))['total'] or 0
-    collected_fees = students.aggregate(total_collected=Sum(F('total_paid')))['total_collected'] or 0
+    total_fees = students.aggregate(total=Sum('total_fee'))['total'] or 0
+    collected_fees = students.aggregate(total_collected=Sum('total_paid'))['total_collected'] or 0
     due_fees = total_fees - collected_fees
-    fee_cleared_students = students.aggregate(cleared_count=Sum(F('fee_cleared')))['cleared_count'] or 0
+    fee_cleared_students = students.aggregate(cleared_count=Sum('fee_cleared'))['cleared_count'] or 0
 
-    branch_wise_totals = payments.values('student__branch').annotate(total=Sum('amount')).order_by('student__branch')
-    user_wise_totals = payments.values('created_by__username').annotate(total=Sum('amount')).order_by('created_by__username')
-    class_wise_totals = payments.values('student__section').annotate(total=Sum('amount')).order_by('student__section')
+    # Aggregate payment data by branch, user, and class section
+    branch_wise_totals = (
+        payments.values('student__branch')
+        .annotate(
+            total=Sum('amount'),
+            number_of_students=Count('student'),  # Count of students per branch
+            due_amount=Sum(F('student__monthly_fees') * 12) - Sum('amount'),  # Total fees minus collected amount
+            total_students=Count('student')  # Count of total students per branch
+        )
+        .order_by('student__branch')
+    )
 
+    user_wise_totals = (
+        payments.values('created_by__username')
+        .annotate(total=Sum('amount'))
+        .order_by('created_by__username')
+    )
+
+    class_wise_totals = (
+        payments.values('student__section')
+        .annotate(
+            total=Sum('amount'),
+            number_of_students=Count('student'),  # Count of students per class
+            due_amount=Sum(F('student__monthly_fees') * 12) - Sum('amount'),  # Total fees minus collected amount
+            total_students=Count('student')  # Count of total students per class
+        )
+        .order_by('student__section')
+    )
+
+    # Prepare context for rendering
     context = {
         'total_students': total_students,
         'total_fees': total_fees,
@@ -122,6 +153,7 @@ def summary(request):
     }
 
     return render(request, 'summary.html', context)
+
 
 ##############################################################################################################
 
@@ -259,6 +291,8 @@ from .forms import PaymentUploadForm
 from .models import Payment, Student
 from django.contrib.auth.models import User
 
+
+
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def upload_payments(request):
@@ -266,7 +300,10 @@ def upload_payments(request):
         form = PaymentUploadForm(request.POST, request.FILES)
         if form.is_valid():
             excel_file = request.FILES['excel_file']
-            df = pd.read_excel(excel_file)  # Assuming the data is in the first sheet
+            df = pd.read_excel(excel_file)  # Assuming data is in the first sheet
+
+            errors = []
+            success_count = 0
 
             # Process each row of the DataFrame
             for index, row in df.iterrows():
@@ -275,25 +312,25 @@ def upload_payments(request):
                 amount_str = str(row.get('Amount', '')).strip()
                 date_value = row.get('Date', None)
                 created_by_username = str(row.get('Created By', '')).strip()
-                receipt_type = str(row.get('Receipt Type', '')).strip()  # Adjusted column name
+                receipt_type = str(row.get('Receipt Type', '')).strip()
                 name = str(row.get('Name', '')).strip()
                 payment_method = str(row.get('Payment Method', '')).strip()
                 organization = str(row.get('Organization', '')).strip()
                 year = str(row.get('Year', '')).strip()
-                book_no = str(row.get('Book No', '')).strip()
-                # Convert amount to float and handle potential conversion errors
+
+                # Convert amount to float, handle errors
                 try:
                     amount = float(amount_str.replace(',', ''))  # Remove commas and convert to float
                 except ValueError:
-                    print(f"Invalid amount '{amount_str}' in row {index + 1}")
+                    errors.append(f"Invalid amount '{amount_str}' in row {index + 1}")
                     continue
 
-                # Convert date to datetime.date object and handle potential conversion errors
+                # Convert date to datetime.date object, handle errors
                 if pd.notna(date_value):
                     try:
                         date = pd.to_datetime(date_value).date()  # Convert to datetime.date
                     except ValueError:
-                        print(f"Invalid date '{date_value}' in row {index + 1}")
+                        errors.append(f"Invalid date '{date_value}' in row {index + 1}")
                         continue
                 else:
                     date = None
@@ -303,7 +340,7 @@ def upload_payments(request):
                     try:
                         student = Student.objects.get(admission_number=student_admission_no)
                     except Student.DoesNotExist:
-                        print(f"Student with admission number '{student_admission_no}' does not exist in row {index + 1}")
+                        errors.append(f"Student with admission number '{student_admission_no}' does not exist in row {index + 1}")
                         student = None
                 else:
                     student = None
@@ -313,12 +350,12 @@ def upload_payments(request):
                     try:
                         created_by = User.objects.get(username=created_by_username)
                     except User.DoesNotExist:
-                        print(f"User with username '{created_by_username}' does not exist in row {index + 1}")
+                        errors.append(f"User with username '{created_by_username}' does not exist in row {index + 1}")
                         created_by = None
                 else:
                     created_by = None
 
-                # Create and save Payment instance
+                # Try to create and save Payment instance
                 try:
                     payment = Payment(
                         receipt_no=receipt_no,
@@ -330,19 +367,29 @@ def upload_payments(request):
                         name=name,
                         payment_method=payment_method,
                         organization=organization,
-                        year=year,
-                        book_no=book_no 
+                        year=year
                     )
+                    payment.full_clean()  # Ensure all fields are valid before saving
                     payment.save()
-                    print(f"Saved payment: {payment}")  # Print saved payment info
+                    success_count += 1
                 except ValidationError as e:
-                    print(f"Validation error for row {index + 1}: {e}")
+                    errors.append(f"Validation error in row {index + 1}: {e.messages}")
                 except Exception as e:
-                    print(f"Error saving payment for row {index + 1}: {e}")
+                    errors.append(f"Error saving payment in row {index + 1}: {e}")
 
-            return HttpResponse('Payments uploaded successfully')
+            # Prepare feedback messages
+            if errors:
+                error_message = f"Failed to process some payments:\n" + "\n".join(errors)
+            else:
+                error_message = ""
+
+            success_message = f"Successfully uploaded {success_count} payments."
+
+            return HttpResponse(f"{success_message}\n{error_message}")
+
         else:
-            print(f"Form errors: {form.errors}")
+            return HttpResponse(f"Form validation errors: {form.errors}")
+    
     else:
         form = PaymentUploadForm()
 
@@ -457,18 +504,21 @@ def receipt_number_input(request):
 from django.shortcuts import render, get_object_or_404
 from .models import Payment
 
-
-
 def print_receipt(request, receipt_no):
     # Retrieve the receipt using the provided receipt number
     receipt = get_object_or_404(Payment, receipt_no=receipt_no)
+    
+    # Assuming there's a relation to the Student model
+    student = getattr(receipt, 'student', None)  # Adjust this according to your actual model relationships
 
-    # Pass the receipt to the template
+    # Pass the receipt and student information to the template
     context = {
         'receipt': receipt,
+        'student': student,
     }
-
+    
     return render(request, 'print_receipt.html', context)
+
 
 
 #############################################################################################################
@@ -628,41 +678,49 @@ from django.contrib.auth.decorators import login_required
 from .forms import PaymentForm
 from .models import Payment, Student
 from django.contrib.auth.models import User
+from datetime import date
+from django.db import IntegrityError
+
+
+  # Import your models
+# Add other necessary imports like User if needed
 
 @login_required
 def make_payment(request):
     if request.method == 'POST':
         form = PaymentForm(request.POST)
         if form.is_valid():
-            admission_number = form.cleaned_data.get('admission_number')
-            amount_paid = form.cleaned_data.get('amount_paid')
-            receipt_number = form.cleaned_data.get('receipt_number')
-            book_no = form.cleaned_data.get('book_no')
-            receipt_type = form.cleaned_data.get('receipt_type') or 'Fee'  # Default to 'Fee' if not provided
-
-            # Attempt to get the student, but proceed even if the student does not exist
+            admission_number = form.cleaned_data['admission_number']
             try:
                 student = Student.objects.get(admission_number=admission_number)
             except Student.DoesNotExist:
-                student = None
+                messages.error(request, "Student not found with the provided admission number.")
+                return render(request, 'make_payment.html', {'form': form})
 
-            created_by = User.objects.get(username=request.user.username)
+            total_due = calculate_total_due(student)
+            amount_paid = form.cleaned_data['amount_paid']
+            payment_method = form.cleaned_data['payment_method']  # New field for payment method
+            payment_date = form.cleaned_data['date']  # Capture the date field
 
-            # Create the payment record
-            payment = Payment.objects.create(
-                student=student,
-                amount=amount_paid,
-                receipt_no=receipt_number,
-                book_no=book_no,
-                created_by=created_by,
-                name=student.name if student else "Unknown",
-                receipt_type=receipt_type,  # Set the receipt type from the form or default
-            )
-
-            messages.success(request, 'Payment has been recorded successfully.')
-            return redirect('payment_list')  # Replace 'payment_list' with your URL name for listing payments
-        else:
-            messages.error(request, 'There was an error with your submission.')
+            if 0 < amount_paid <= total_due:
+                receipt_number = form.cleaned_data['receipt_number']
+                created_by = request.user
+                
+                try:
+                    Payment.objects.create(
+                        student=student,
+                        amount=amount_paid,
+                        receipt_no=receipt_number,
+                        created_by=created_by,
+                        date=payment_date,
+                        payment_method=payment_method,
+                    )
+                    messages.success(request, "Payment successfully recorded!")
+                    return redirect(reverse('payment_success') + f'?admission_number={admission_number}')
+                except IntegrityError:
+                    messages.error(request, "A payment with the same receipt number already exists. Please enter a unique receipt number.")
+            else:
+                messages.error(request, "You cannot make 0 payment or more than the total due amount. Please pay the correct amount.")
     else:
         form = PaymentForm()
 

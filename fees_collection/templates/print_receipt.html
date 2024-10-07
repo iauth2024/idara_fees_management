@@ -80,33 +80,42 @@
         <div class="receipt-header">
             <h1>Receipt</h1>
         </div>
-        <div class="receipt-item">
-            <label>Book Number:</label>
-            <span>{{ receipt.book_no }}</span>  <!-- Display book number -->
-        </div>
+
         <div class="receipt-item">
             <label>Receipt Number:</label>
             <span>{{ receipt.receipt_no }}</span>  <!-- Display receipt number -->
         </div>
         <div class="receipt-item">
+            <label>Admission Number:</label>
+            <span>{{ student.admission_number }}</span>  <!-- Display admission number -->
+        </div>
+        <div class="receipt-item">
             <label>Name:</label>
-            <span>{{ receipt.name }}</span>
+            <span>{{ student.name }}</span>  <!-- Display student name -->
+        </div>
+        <div class="receipt-item">
+            <label>Course:</label>
+            <span>{{ student.course }}</span>  <!-- Display course -->
+        </div>
+        <div class="receipt-item">
+            <label>Section:</label>
+            <span>{{ student.section }}</span>  <!-- Display section -->
         </div>
         <div class="receipt-item">
             <label>Amount:</label>
-            <span>{{ receipt.amount|indian_number_format }}</span>
+            <span>{{ receipt.amount|indian_number_format }}</span>  <!-- Display amount -->
         </div>
         <div class="receipt-item">
             <label>Date:</label>
-            <span>{{ receipt.date }}</span>
+            <span>{{ receipt.date }}</span>  <!-- Display date -->
         </div>
         <div class="receipt-item">
             <label>Receipt Type:</label>
-            <span>{{ receipt.receipt_type }}</span>
+            <span>{{ receipt.receipt_type }}</span>  <!-- Display receipt type -->
         </div>
         <div class="receipt-item">
             <label>Payment Method:</label>
-            <span>{{ receipt.payment_method }}</span>
+            <span>{{ receipt.payment_method }}</span>  <!-- Display payment method -->
         </div>
         <div class="receipt-footer">
             <div class="footer-note">
@@ -117,7 +126,7 @@
     <script>
         window.onload = function() {
             setTimeout(function() {
-                window.print();
+                window.print();  // Automatically print the receipt
             }, 500);  // Add a slight delay to ensure all content is loaded
         }
     </script>
