@@ -206,6 +206,13 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 from .forms import UploadFileForm
 from .models import Student
+from decimal import Decimal, InvalidOperation
+
+
+from decimal import Decimal, InvalidOperation
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.shortcuts import render
+import pandas as pd
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -220,8 +227,32 @@ def upload_file(request):
                 failed_students = []
                 already_exists_students = []
 
+                # Ensure expected columns are present
+                required_columns = ['Admission Number', 'Name', 'Phone', 'Course', 'Section', 'Branch', 'Monthly Fees', 'Student Type']
+                if not all(col in df.columns for col in required_columns):
+                    return render(request, 'upload_result.html', {
+                        'error': 'The uploaded file is missing one or more required columns.'
+                    })
+
                 for index, row in df.iterrows():
                     admission_number = row['Admission Number']
+                    # Ensure phone is treated as a string and strip any whitespace
+                    phone = str(row['Phone']).strip()
+
+                    # Log or print the phone number to debug
+                    print(f"Processing phone number: {phone}")
+
+                    # Ensure monthly fees are handled correctly as Decimal
+                    try:
+                        monthly_fees = Decimal(row['Monthly Fees']).quantize(Decimal('1.'))
+                    except (ValueError, InvalidOperation):
+                        failed_students.append({
+                            'admission_number': admission_number,
+                            'name': row['Name'],
+                            'reason': 'Invalid Monthly Fees'
+                        })
+                        continue  # Skip to the next row if there's an error
+
                     if Student.objects.filter(admission_number=admission_number).exists():
                         already_exists_students.append({
                             'admission_number': admission_number,
@@ -231,11 +262,11 @@ def upload_file(request):
                     else:
                         if Student.objects.exclude(admission_number=admission_number).filter(
                                 name=row['Name'],
-                                phone=row['Phone'],
+                                phone=phone,  # Use the processed phone number
                                 course=row['Course'],
                                 section=row['Section'],
                                 branch=row['Branch'],
-                                monthly_fees=row['Monthly Fees'],
+                                monthly_fees=monthly_fees,
                                 student_type=row['Student Type']
                         ).exists():
                             failed_students.append({
@@ -247,11 +278,11 @@ def upload_file(request):
                             student = Student(
                                 admission_number=admission_number,
                                 name=row['Name'],
-                                phone=row['Phone'],
+                                phone=phone,  # Use the processed phone number
                                 course=row['Course'],
                                 section=row['Section'],
                                 branch=row['Branch'],
-                                monthly_fees=row['Monthly Fees'],
+                                monthly_fees=monthly_fees,
                                 student_type=row['Student Type']
                             )
                             student.save()
@@ -279,120 +310,67 @@ def upload_file(request):
     return render(request, 'upload_file.html', {'form': form})
 
 
+
+
 #############################################################################################################
 
 
-from django.shortcuts import render
-from django.http import HttpResponse
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.exceptions import ValidationError
+
+
+
 import pandas as pd
-from .forms import PaymentUploadForm
-from .models import Payment, Student
 from django.contrib.auth.models import User
-
-
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .forms import PaymentUploadForm  # Ensure you have this import for your form
+from .models import Payment, Student  # Ensure you have the correct model imports
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@user_passes_test(lambda u: u.is_staff)  # Ensure only admin users can access this view
 def upload_payments(request):
     if request.method == 'POST':
         form = PaymentUploadForm(request.POST, request.FILES)
         if form.is_valid():
             excel_file = request.FILES['excel_file']
-            df = pd.read_excel(excel_file)  # Assuming data is in the first sheet
-
-            errors = []
-            success_count = 0
-
+            df = pd.read_excel(excel_file)  # Assuming the data is in the first sheet
+            
             # Process each row of the DataFrame
             for index, row in df.iterrows():
-                receipt_no = str(row.get('Receipt No', '')).strip()
-                student_admission_no = str(row.get('Student Admission No', '')).strip()
-                amount_str = str(row.get('Amount', '')).strip()
-                date_value = row.get('Date', None)
-                created_by_username = str(row.get('Created By', '')).strip()
-                receipt_type = str(row.get('Receipt Type', '')).strip()
-                name = str(row.get('Name', '')).strip()
-                payment_method = str(row.get('Payment Method', '')).strip()
-                organization = str(row.get('Organization', '')).strip()
-                year = str(row.get('Year', '')).strip()
-
-                # Convert amount to float, handle errors
+                receipt_no = row['Receipt No']
+                student_admission_no = row['Student Admission No']
+                amount = row['Amount']
+                date = row['Date']
+                created_by_username = row['Created By']  # Assuming this is a username
+                
+                # Find or create the student and user
                 try:
-                    amount = float(amount_str.replace(',', ''))  # Remove commas and convert to float
-                except ValueError:
-                    errors.append(f"Invalid amount '{amount_str}' in row {index + 1}")
-                    continue
-
-                # Convert date to datetime.date object, handle errors
-                if pd.notna(date_value):
-                    try:
-                        date = pd.to_datetime(date_value).date()  # Convert to datetime.date
-                    except ValueError:
-                        errors.append(f"Invalid date '{date_value}' in row {index + 1}")
-                        continue
-                else:
-                    date = None
-
-                # Check if student exists
-                if student_admission_no:
-                    try:
-                        student = Student.objects.get(admission_number=student_admission_no)
-                    except Student.DoesNotExist:
-                        errors.append(f"Student with admission number '{student_admission_no}' does not exist in row {index + 1}")
-                        student = None
-                else:
-                    student = None
-
-                # Check if user exists
-                if created_by_username:
-                    try:
-                        created_by = User.objects.get(username=created_by_username)
-                    except User.DoesNotExist:
-                        errors.append(f"User with username '{created_by_username}' does not exist in row {index + 1}")
-                        created_by = None
-                else:
-                    created_by = None
-
-                # Try to create and save Payment instance
+                    student = Student.objects.get(admission_number=student_admission_no)
+                except Student.DoesNotExist:
+                    # Handle the case where the student does not exist
+                    print(f"Student with admission number {student_admission_no} does not exist.")
+                    continue  # Skip this row
+                
                 try:
-                    payment = Payment(
-                        receipt_no=receipt_no,
-                        student=student,
-                        amount=amount,
-                        date=date,
-                        created_by=created_by,
-                        receipt_type=receipt_type,
-                        name=name,
-                        payment_method=payment_method,
-                        organization=organization,
-                        year=year
-                    )
-                    payment.full_clean()  # Ensure all fields are valid before saving
-                    payment.save()
-                    success_count += 1
-                except ValidationError as e:
-                    errors.append(f"Validation error in row {index + 1}: {e.messages}")
-                except Exception as e:
-                    errors.append(f"Error saving payment in row {index + 1}: {e}")
-
-            # Prepare feedback messages
-            if errors:
-                error_message = f"Failed to process some payments:\n" + "\n".join(errors)
-            else:
-                error_message = ""
-
-            success_message = f"Successfully uploaded {success_count} payments."
-
-            return HttpResponse(f"{success_message}\n{error_message}")
-
-        else:
-            return HttpResponse(f"Form validation errors: {form.errors}")
-    
+                    created_by = User.objects.get(username=created_by_username)
+                except User.DoesNotExist:
+                    # Handle the case where the user does not exist
+                    print(f"User '{created_by_username}' does not exist.")
+                    continue  # Skip this row
+                
+                # Create and save Payment instance
+                payment = Payment(
+                    receipt_no=receipt_no,
+                    student=student,
+                    amount=amount,
+                    date=date,
+                    created_by=created_by
+                )
+                payment.save()
+            
+            return HttpResponse('Payments uploaded successfully')
     else:
         form = PaymentUploadForm()
-
     return render(request, 'upload_payments.html', {'form': form})
 
 
