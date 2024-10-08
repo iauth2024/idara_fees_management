@@ -131,7 +131,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 5000
 # # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
 
-# ALLOWED_HOSTS = ['idara-fees-management.onrender.com', '127.0.0.1', 'localhost']
+# ALLOWED_HOSTS = ['idara-fee-management.onrender.com', '127.0.0.1', 'localhost']
 
 # # Application definition
 # INSTALLED_APPS = [
