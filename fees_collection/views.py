@@ -754,21 +754,22 @@ def payment_success(request):
 from django.shortcuts import render
 from django.db.models import Sum
 from .models import Student, Payment
+from decimal import Decimal
 
 def reports(request):
     # Fetch all students initially
     students = Student.objects.all()
 
-    # Get unique choices for branch and section
+    # Get unique choices for branch, section, and course
     branch_choices = Student.BRANCH_CHOICES
     section_choices = Student._meta.get_field('section').choices
-    course_choices = Student.COURSE_CHOICES  # Add this line
+    course_choices = Student.COURSE_CHOICES
 
     # Get filter parameters from the request
     course = request.GET.get('course', '')
     branch = request.GET.get('branch', '')
     section = request.GET.get('section', '')
-    months_paid = request.GET.get('months_paid', '')
+    months_due = request.GET.get('months_due', '0')
 
     # Apply filters if provided
     if course:
@@ -778,44 +779,50 @@ def reports(request):
     if section:
         students = students.filter(section=section)
 
-    # Calculate months paid for each student and filter based on the provided months_paid
-    filtered_students = []
-    if months_paid.isdigit():
-        months_paid = int(months_paid)
-        for student in students:
-            total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0
-            paid_months = total_paid / student.monthly_fees if student.monthly_fees else 0
-            if paid_months < months_paid:
-                filtered_students.append(student)
-    else:
-        filtered_students = students
-
-    # Calculate total fees paid and outstanding fees for each filtered student
+    # Initialize a list to hold additional info for each student
     additional_info = []
-    for student in filtered_students:
-        total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_due = student.total_fees - total_paid
-        months_paid_count = total_paid / student.monthly_fees if student.monthly_fees != 0 else 0
+
+    # Convert months_due to integer for calculations
+    months_due = int(months_due) if months_due.isdigit() else 0
+
+    # Calculate total fees paid and outstanding fees for each student
+    for student in students:
+        # Ensure monthly_fees is a Decimal
+        monthly_fees = student.monthly_fees if isinstance(student.monthly_fees, Decimal) else Decimal(student.monthly_fees)
+
+        # Calculate total paid by this student
+        total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or Decimal(0)
+
+        # Calculate months paid based on total paid and monthly fees
+        months_paid = total_paid / monthly_fees if monthly_fees > 0 else 0
+        
+        # Calculate total due based on months due
+        total_due = monthly_fees * months_due - total_paid
+
+        # Append student info and financials to the additional_info list
         additional_info.append({
             'student': student,
-            'monthly_fees': student.monthly_fees,
+            'monthly_fees': monthly_fees,
             'total_fees': student.total_fees,
             'total_paid': total_paid,
             'total_due': total_due,
-            'months_paid': months_paid_count,
+            'months_paid': months_paid,
         })
 
+    # Prepare the context for rendering the template
     context = {
         'additional_info': additional_info,
         'branch_choices': branch_choices,
         'section_choices': section_choices,
-        'course_choices': course_choices,  # Add this line
+        'course_choices': course_choices,
         'course': course,
         'branch': branch,
         'selected_section': section,
-        'selected_months_paid': months_paid,
+        'selected_months_due': months_due,
     }
     return render(request, 'reports.html', context)
+
+
 
 ######################################################################################################################
 
@@ -873,3 +880,43 @@ def generate_pdf(request):
     if pisa_status.err:
         return HttpResponse('We had some errors <pre>' + html + '</pre>')
     return response
+
+
+######################################################################################################################
+
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Student
+from .forms import StudentEditForm
+
+from django.shortcuts import render
+from .models import Student
+from django.db.models import Q  # Import Q for complex queries
+
+def student_list(request):
+    query = request.GET.get('q', '')  # Get the search query from the request
+    students = Student.objects.all()  # Start with all students
+
+    if query:  # If there is a search query
+        # Filter students based on admission number, phone, or name
+        students = students.filter(
+            Q(admission_number__icontains=query) | 
+            Q(phone__icontains=query) | 
+            Q(name__icontains=query)
+        )
+
+    return render(request, 'student_list.html', {'students': students, 'query': query})
+
+
+def edit_student(request, id):
+    """View to edit student details."""
+    student = get_object_or_404(Student, admission_number=id)  # Retrieve the student using the admission number
+
+    if request.method == 'POST':
+        form = StudentEditForm(request.POST, instance=student)  # Bind the form with student data
+        if form.is_valid():
+            form.save()  # Save the updated student data
+            return redirect('student_list')  # Redirect to the student list view
+    else:
+        form = StudentEditForm(instance=student)  # Create form instance with student data for GET request
+
+    return render(request, 'edit_student.html', {'form': form})  # Render the edit student template

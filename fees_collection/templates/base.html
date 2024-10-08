@@ -30,7 +30,7 @@
 
         .horizontal-menu {
             background-color: #343a40; /* Dark grey */
-            padding: 10px 20px; /* Add some padding */
+            padding: 10px 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
@@ -38,40 +38,66 @@
             list-style-type: none;
             margin: 0;
             padding: 0;
-            display: flex; /* Use flexbox for horizontal layout */
+            display: flex;
         }
 
         .horizontal-menu ul li {
-            margin-right: 20px; /* Space between menu items */
+            position: relative;
+            margin-right: 20px;
         }
 
         .horizontal-menu ul li a {
-            color: #ffffff; /* White */
+            color: #ffffff;
             text-decoration: none;
-            padding: 10px 15px; /* Padding for links */
+            padding: 10px 15px;
             font-weight: bold;
             transition: background-color 0.3s;
-            border-radius: 4px; /* Rounded corners for the links */
+            border-radius: 4px;
         }
 
         .horizontal-menu ul li a:hover {
-            background-color: #495057; /* Lighter grey on hover */
+            background-color: #495057;
+        }
+
+        .horizontal-menu ul li ul {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #495057;
+            display: none;
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .horizontal-menu ul li:hover ul {
+            display: block;
+        }
+
+        .horizontal-menu ul li ul li {
+            margin: 0;
+        }
+
+        .horizontal-menu ul li ul li a {
+            padding: 10px 15px;
+            display: block;
         }
 
         .content {
-            margin: 20px; /* Margin for the content area */
+            margin: 20px;
             padding: 30px;
-            background: #ffffff; /* White */
+            background: #ffffff;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
         h1 {
-            color: #007bff; /* Bootstrap primary color */
+            color: #007bff;
         }
 
         h2 {
-            color: #17a2b8; /* Bootstrap info color */
+            color: #17a2b8;
         }
     </style>
 </head>
@@ -82,9 +108,19 @@
             <li><a href="{% url 'homepage' %}">Home</a></li>
 
             {% if user.is_staff %}
-                <li><a href="{% url 'upload_file' %}">Upload Students</a></li>
-                <li><a href="{% url 'upload_payments' %}">Upload Receipts</a></li>
-                <li><a href="{% url 'download_payments' %}">Download Receipts</a></li>
+                <li>
+                    <a href="#">Upload</a>
+                    <ul>
+                        <li><a href="{% url 'upload_file' %}">Upload Students</a></li>
+                        <li><a href="{% url 'upload_payments' %}">Upload Receipts</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#">Download</a>
+                    <ul>
+                        <li><a href="{% url 'download_payments' %}">Download Receipts</a></li>
+                    </ul>
+                </li>
                 <li><a href="{% url 'summary' %}">Summary</a></li>
             {% endif %}
 
@@ -92,8 +128,8 @@
             <li><a href="{% url 'student_payment_report' %}">Fee Card</a></li>
             <li><a href="{% url 'user_payments' %}">My Entries</a></li>
             <li><a href="{% url 'reports' %}">Reports</a></li>
-            <!-- <li><a href="{% url 'student_receipt_list' %}">List Students with Receipts</a></li> -->
             <li><a href="{% url 'receipt_number_input' %}" class="print-receipt-button">Print Receipt</a></li>
+            <li><a href="{% url 'student_list' %}">Students</a></li> <!-- Added link to student list -->
         </ul>
     </div>
 

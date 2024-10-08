@@ -15,3 +15,12 @@ class UploadFileForm(forms.Form):
     file = forms.FileField(label='Select a file')
 class PaymentUploadForm(forms.Form):
     excel_file = forms.FileField()
+
+
+from django import forms
+from .models import Student
+
+class StudentEditForm(forms.ModelForm):
+    class Meta:
+        model = Student
+        fields = ['name', 'father_name', 'phone', 'course', 'branch', 'section', 'student_type']  # Exclude admission_number and fees

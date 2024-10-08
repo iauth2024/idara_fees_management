@@ -22,6 +22,8 @@ from .views import (
     make_payment,
     payment_success,
     get_student_details,
+    student_list,
+    edit_student
 )
 
 urlpatterns = [
@@ -52,6 +54,8 @@ urlpatterns = [
     path('reports/excel/', generate_excel, name='generate_excel'),
     path('student/payment/report/', student_payment_report, name='student_payment_report'),
     path('get_student_details/', get_student_details, name='get_student_details'),
+    path('students/', student_list, name='student_list'),  # Student list URL
+    path('students/edit/<int:id>/', edit_student, name='edit_student'),
 
     # Password management
     path('forgot-password/', auth_views.PasswordResetView.as_view(), name='forgot_password'),
