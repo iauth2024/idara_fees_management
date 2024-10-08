@@ -18,7 +18,7 @@
     <meta name="theme-color" content="#ffffff">
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -28,97 +28,99 @@
             min-height: 100vh;
         }
 
-        .vertical-menu {
-            width: 250px;
+        .horizontal-menu {
             background-color: #343a40; /* Dark grey */
-            padding: 0;
+            padding: 10px 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            position: fixed;
-            height: 100%;
-            top: 0;
-            left: 0;
-            overflow-y: auto;
         }
 
-        .vertical-menu ul {
+        .horizontal-menu ul {
             list-style-type: none;
             margin: 0;
             padding: 0;
+            display: flex;
         }
 
-        .vertical-menu ul li {
+        .horizontal-menu ul li {
             position: relative;
+            margin-right: 20px;
         }
 
-        .vertical-menu ul li a {
-            color: #ffffff; /* White */
+        .horizontal-menu ul li a {
+            color: #ffffff;
             text-decoration: none;
-            padding: 15px 20px;
-            display: block;
+            padding: 10px 15px;
             font-weight: bold;
             transition: background-color 0.3s;
+            border-radius: 4px;
         }
 
-        .vertical-menu ul li a:hover {
-            background-color: #495057; /* Lighter grey */
+        .horizontal-menu ul li a:hover {
+            background-color: #495057;
         }
 
-        .vertical-menu ul li ul {
+        .horizontal-menu ul li ul {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background-color: #495057;
             display: none;
-            position: relative;
-            background-color: #6c757d; /* Medium grey */
+            list-style-type: none;
             padding: 0;
             margin: 0;
-            list-style-type: none;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        .vertical-menu ul li ul li {
+        .horizontal-menu ul li:hover ul {
             display: block;
         }
 
-        .vertical-menu ul li ul li a {
-            padding: 10px 20px;
-            white-space: nowrap;
-            color: #ffffff; /* White */
-            transition: background-color 0.3s;
+        .horizontal-menu ul li ul li {
+            margin: 0;
         }
 
-        .vertical-menu ul li ul li a:hover {
-            background-color: #495057; /* Lighter grey */
-        }
-
-        .vertical-menu ul li:hover ul {
+        .horizontal-menu ul li ul li a {
+            padding: 10px 15px;
             display: block;
         }
 
         .content {
-            margin-left: 270px; /* Adjust according to the width of the vertical menu */
+            margin: 20px;
             padding: 30px;
-            background: #ffffff; /* White */
+            background: #ffffff;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
         }
 
         h1 {
-            color: #007bff; /* Bootstrap primary color */
+            color: #007bff;
         }
 
         h2 {
-            color: #17a2b8; /* Bootstrap info color */
+            color: #17a2b8;
         }
     </style>
 </head>
 <body>
 
-    <div class="vertical-menu">
+    <div class="horizontal-menu">
         <ul>
             <li><a href="{% url 'homepage' %}">Home</a></li>
 
             {% if user.is_staff %}
-                <li><a href="{% url 'upload_file' %}">Upload Students</a></li>
-                <li><a href="{% url 'upload_payments' %}">Upload Receipts</a></li>
-                <li><a href="{% url 'download_payments' %}">Download Receipts</a></li>
+                <li>
+                    <a href="#">Upload</a>
+                    <ul>
+                        <li><a href="{% url 'upload_file' %}">Upload Students</a></li>
+                        <li><a href="{% url 'upload_payments' %}">Upload Receipts</a></li>
+                    </ul>
+                </li>
+                <li>
+                    <a href="#">Download</a>
+                    <ul>
+                        <li><a href="{% url 'download_payments' %}">Download Receipts</a></li>
+                    </ul>
+                </li>
                 <li><a href="{% url 'summary' %}">Summary</a></li>
             {% endif %}
 
@@ -126,8 +128,8 @@
             <li><a href="{% url 'student_payment_report' %}">Fee Card</a></li>
             <li><a href="{% url 'user_payments' %}">My Entries</a></li>
             <li><a href="{% url 'reports' %}">Reports</a></li>
-            <li><a href="{% url 'student_receipt_list' %}">List Students with Receipts</a></li>
             <li><a href="{% url 'receipt_number_input' %}" class="print-receipt-button">Print Receipt</a></li>
+            <li><a href="{% url 'student_list' %}">Students</a></li> <!-- Added link to student list -->
         </ul>
     </div>
 

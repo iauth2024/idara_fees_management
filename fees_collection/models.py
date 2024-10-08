@@ -2,24 +2,72 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
+
+
 class Student(models.Model):
     COURSE_CHOICES = [
-        ('Mahade Ashraf ', 'Mahade Ashraf '),
+        ('Mahade Ashraf', 'Mahade Ashraf'),
         ('معہد علیم', 'معہد علیم'),
         ('معہد ابرار', 'معہد ابرار'),
-        ('معہد قاسم', 'معہد قاسم')
-        # Add other courses as needed
+        ('معہد قاسم', 'معہد قاسم'),
+        ('حفظ', 'حفظ'),
+        ('ناظرہ', 'ناظرہ'),
     ]
 
     BRANCH_CHOICES = [
-        ('Akber Bagh', 'Akber Bagh'),
         ('Khaja Bagh', 'Khaja Bagh'),
-        # Add other branches as needed
+        ('Akber Bagh', 'Akber Bagh'),
+        ('Ghatkesar', 'Ghatkesar'),
+        ('Bandlaguda', 'Bandlaguda'),
     ]
 
     STUDENT_TYPE_CHOICES = [
         ('Day Scholar', 'Day Scholar'),
         ('Boarder', 'Boarder'),
+    ]
+
+    SECTION_CHOICES = [
+        ('INTER - I', 'INTER - I'),
+        ('INTER - II', 'INTER - II'),
+        ('B.COM - I', 'B.COM - I'),
+        ('B.COM - II', 'B.COM - II'),
+        ('B.COM - III', 'B.COM - III'),
+        ('Awwal (Alif)', 'اول (الف)'),
+        ('Awwal (Baa)', 'اول (ب)'),
+        ('Awwal (Jeem)', 'اول (ج)'),
+        ('Duwwam (Alif)', 'دوم (الف)'),
+        ('Duwwam (Baa)', 'دوم (ب)'),
+        ('Suwwam (Alif)', 'سوم (الف)'),
+        ('Suwwam (Baa)', 'سوم (ب)'),
+        ('Suwwam (Jeem)', 'سوم (ج)'),
+        ('Chahrum (Alif)', 'چهارم (الف)'),
+        ('Chahrum (Baa)', 'چهارم (ب)'),
+        ('Panjum', 'پنجم'),
+        ('Mouqoof Alai', 'موقوف علیہ'),
+        ('Daur-e-Hadees', 'دورہ حدیث'),
+        ('Edadiya School (Alif)', 'ادادیہ اسکول (الف)'),
+        ('Edadiya School (Baa)', 'ادادیہ اسکول (ب)'),
+        ('Awwal School (Alif)', 'اول اسکول (الف)'),
+        ('Awwal School (Baa)', 'اول اسکول (ب)'),
+        ('Duwwam School (Alif)', 'دوم اسکول (الف)'),
+        ('Duwwam School (Baa)', 'دوم اسکول (ب)'),
+        ('Suwwam', 'سوم'),
+        ('Chahrum', 'چهارم'),
+        ('Hifz-Alif', 'Hifz-Alif'),
+        ('Hifz-Baa', 'Hifz-Baa'),
+        ('Hifz-Jeem', 'Hifz-Jeem'),
+        ('Hifz-Daal', 'Hifz-Daal'),
+        ('Hifz-Zaa', 'Hifz-Zaa'),
+        ('Hifz-Haa', 'Hifz-Haa'),
+        ('Hifz-Haah', 'Hifz-Haah'),
+        ('Hifz-Waav', 'Hifz-Waav'),
+        ('Nazira-Alif', 'Nazira-Alif'),
+        ('Nazira-Baa', 'Nazira-Baa'),
+        ('Nazira-Jeem', 'Nazira-Jeem'),
+        ('Nazira-Daal', 'Nazira-Daal'),
     ]
 
     admission_number = models.CharField(max_length=20, unique=True)
@@ -28,14 +76,7 @@ class Student(models.Model):
     phone = models.CharField(max_length=15, null=True, blank=True)
     course = models.CharField(max_length=100, choices=COURSE_CHOICES)
     branch = models.CharField(max_length=100, choices=BRANCH_CHOICES)
-    section = models.CharField(max_length=100, choices=[
-        ('B.COM - I', 'B.COM - I'),
-        ('B.COM - II', 'B.COM - II'),
-        ('B.COM - III', 'B.COM - III'),
-        # ... (other sections)
-        ('دورۂ حدیث', 'دورۂ حدیث'),
-    ], null=True, blank=True)
-
+    section = models.CharField(max_length=100, choices=SECTION_CHOICES, null=True, blank=True)
     monthly_fees = models.DecimalField(max_digits=10, decimal_places=2)
     student_type = models.CharField(max_length=20, choices=STUDENT_TYPE_CHOICES, default='Boarder')
 
@@ -45,6 +86,8 @@ class Student(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.admission_number})'
+
+
 class Payment(models.Model):
     RECEIPT_TYPE_CHOICES = [
         ('fee', 'Fee'),
@@ -57,26 +100,22 @@ class Payment(models.Model):
         ('online', 'Online'),
     ]
 
-    book_no = models.CharField(max_length=10)
-    receipt_no = models.CharField(max_length=10)
+    receipt_no = models.CharField(max_length=20, null=False, blank=False, unique=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField(null=True, blank=True)
+    date = models.DateField(auto_now_add=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     receipt_type = models.CharField(max_length=15, choices=RECEIPT_TYPE_CHOICES, default='fee')
     name = models.CharField(max_length=255, null=True, blank=True)
     payment_method = models.CharField(max_length=100, choices=PAYMENT_METHOD_CHOICES, default='cash')
     organization = models.CharField(max_length=255, null=True, blank=True)
-    year = models.CharField(max_length=4, null=True, blank=True)
+    year = models.CharField(max_length=9, null=True, blank=True)
 
     class Meta:
-        unique_together = ('book_no', 'receipt_no')
+        unique_together = ('receipt_no',)
 
     def __str__(self):
-        return f'Book No: {self.book_no}, Receipt No: {self.receipt_no}'
+        return f'Receipt No: {self.receipt_no}'
 
-    def clean_receipt_no(self):
-        receipt_no = self.receipt_no
-        if not (1 <= int(receipt_no) <= 50):
-            raise ValidationError('Receipt number must be between 1 and 50.')
-        return receipt_no
+
+ 

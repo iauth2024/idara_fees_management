@@ -131,14 +131,14 @@
             {% endfor %}
         </select>
 
-        <label for="months_paid">Months Paid:</label>
-        <input type="number" name="months_paid" min="0" max="12" step="1" value="{{ selected_months_paid }}">
+        <label for="months_due">Months Due:</label>
+        <input type="number" name="months_due" min="0" max="12" step="1" value="{{ selected_months_due }}">
 
         <button type="submit">Filter</button>
-        <a href="{% url 'generate_pdf' %}?branch={{ branch }}&course={{ course }}&section={{ selected_section }}&months_paid={{ selected_months_paid }}" target="_blank">
+        <a href="{% url 'generate_pdf' %}?branch={{ branch }}&course={{ course }}&section={{ selected_section }}&months_due={{ selected_months_due }}" target="_blank">
             <button type="button">Download PDF</button>
         </a>
-        <a href="{% url 'generate_excel' %}?branch={{ branch }}&course={{ course }}&section={{ selected_section }}&months_paid={{ selected_months_paid }}">
+        <a href="{% url 'generate_excel' %}?branch={{ branch }}&course={{ course }}&section={{ selected_section }}&months_due={{ selected_months_due }}">
             <button type="button">Download Excel</button>
         </a>
     </form>
@@ -169,10 +169,10 @@
                     <td>{{ item.student.course }}</td>
                     <td>{{ item.student.branch }}</td>
                     <td>{{ item.student.section }}</td>
-                    <td>{{ item.monthly_fees|indian_number_format  }}</td>
+                    <td>{{ item.monthly_fees|indian_number_format }}</td>
                     <td>{{ item.total_fees|indian_number_format }}</td>
-                    <td style="color: rgb(34, 169, 88);font-weight: bold;">{{ item.total_paid|indian_number_format  }}</td>
-                    <td style="color: rgb(255, 85, 0);font-weight: bold;">{{ item.total_due|indian_number_format  }}</td>
+                    <td style="color: rgb(34, 169, 88);font-weight: bold;">{{ item.total_paid|indian_number_format }}</td>
+                    <td style="color: rgb(255, 85, 0);font-weight: bold;">{{ item.total_due|indian_number_format }}</td>
                     <td>{{ item.months_paid|floatformat:"1" }}</td>
                 </tr>
                 {% endfor %}

@@ -1,3 +1,4 @@
+import datetime
 from django.http import HttpResponse
 from openpyxl import Workbook
 from django.db.models import Sum, F
@@ -67,7 +68,7 @@ class CustomPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
-from django.db.models import Sum, F, Case, When, IntegerField
+from django.db.models import Sum, Count, F, Case, When, IntegerField
 
 @login_required
 @staff_member_required
@@ -75,15 +76,18 @@ def summary(request):
     selected_organization = request.GET.get('organization', '')
     selected_year = request.GET.get('year', '')
 
+    # Get distinct organizations and years from payments
     organizations = Payment.objects.values_list('organization', flat=True).distinct()
     years = Payment.objects.values_list('year', flat=True).distinct()
 
+    # Filter payments based on selected organization and year
     payments = Payment.objects.all()
     if selected_organization:
         payments = payments.filter(organization=selected_organization)
     if selected_year:
         payments = payments.filter(year=selected_year)
 
+    # Annotate students with total fee and total paid amount
     students = Student.objects.annotate(
         total_fee=F('monthly_fees') * 12,
         total_paid=Sum('payment__amount')
@@ -96,16 +100,43 @@ def summary(request):
         )
     )
 
+    # Calculate overall statistics
     total_students = students.count()
-    total_fees = students.aggregate(total=Sum(F('total_fee')))['total'] or 0
-    collected_fees = students.aggregate(total_collected=Sum(F('total_paid')))['total_collected'] or 0
+    total_fees = students.aggregate(total=Sum('total_fee'))['total'] or 0
+    collected_fees = students.aggregate(total_collected=Sum('total_paid'))['total_collected'] or 0
     due_fees = total_fees - collected_fees
-    fee_cleared_students = students.aggregate(cleared_count=Sum(F('fee_cleared')))['cleared_count'] or 0
+    fee_cleared_students = students.aggregate(cleared_count=Sum('fee_cleared'))['cleared_count'] or 0
 
-    branch_wise_totals = payments.values('student__branch').annotate(total=Sum('amount')).order_by('student__branch')
-    user_wise_totals = payments.values('created_by__username').annotate(total=Sum('amount')).order_by('created_by__username')
-    class_wise_totals = payments.values('student__section').annotate(total=Sum('amount')).order_by('student__section')
+    # Aggregate payment data by branch, user, and class section
+    branch_wise_totals = (
+        payments.values('student__branch')
+        .annotate(
+            total=Sum('amount'),
+            number_of_students=Count('student'),  # Count of students per branch
+            due_amount=Sum(F('student__monthly_fees') * 12) - Sum('amount'),  # Total fees minus collected amount
+            total_students=Count('student')  # Count of total students per branch
+        )
+        .order_by('student__branch')
+    )
 
+    user_wise_totals = (
+        payments.values('created_by__username')
+        .annotate(total=Sum('amount'))
+        .order_by('created_by__username')
+    )
+
+    class_wise_totals = (
+        payments.values('student__section')
+        .annotate(
+            total=Sum('amount'),
+            number_of_students=Count('student'),  # Count of students per class
+            due_amount=Sum(F('student__monthly_fees') * 12) - Sum('amount'),  # Total fees minus collected amount
+            total_students=Count('student')  # Count of total students per class
+        )
+        .order_by('student__section')
+    )
+
+    # Prepare context for rendering
     context = {
         'total_students': total_students,
         'total_fees': total_fees,
@@ -122,6 +153,7 @@ def summary(request):
     }
 
     return render(request, 'summary.html', context)
+
 
 ##############################################################################################################
 
@@ -174,6 +206,13 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 from .forms import UploadFileForm
 from .models import Student
+from decimal import Decimal, InvalidOperation
+
+
+from decimal import Decimal, InvalidOperation
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.shortcuts import render
+import pandas as pd
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
@@ -188,8 +227,32 @@ def upload_file(request):
                 failed_students = []
                 already_exists_students = []
 
+                # Ensure expected columns are present
+                required_columns = ['Admission Number', 'Name', 'Phone', 'Course', 'Section', 'Branch', 'Monthly Fees', 'Student Type']
+                if not all(col in df.columns for col in required_columns):
+                    return render(request, 'upload_result.html', {
+                        'error': 'The uploaded file is missing one or more required columns.'
+                    })
+
                 for index, row in df.iterrows():
                     admission_number = row['Admission Number']
+                    # Ensure phone is treated as a string and strip any whitespace
+                    phone = str(row['Phone']).strip()
+
+                    # Log or print the phone number to debug
+                    print(f"Processing phone number: {phone}")
+
+                    # Ensure monthly fees are handled correctly as Decimal
+                    try:
+                        monthly_fees = Decimal(row['Monthly Fees']).quantize(Decimal('1.'))
+                    except (ValueError, InvalidOperation):
+                        failed_students.append({
+                            'admission_number': admission_number,
+                            'name': row['Name'],
+                            'reason': 'Invalid Monthly Fees'
+                        })
+                        continue  # Skip to the next row if there's an error
+
                     if Student.objects.filter(admission_number=admission_number).exists():
                         already_exists_students.append({
                             'admission_number': admission_number,
@@ -199,11 +262,11 @@ def upload_file(request):
                     else:
                         if Student.objects.exclude(admission_number=admission_number).filter(
                                 name=row['Name'],
-                                phone=row['Phone'],
+                                phone=phone,  # Use the processed phone number
                                 course=row['Course'],
                                 section=row['Section'],
                                 branch=row['Branch'],
-                                monthly_fees=row['Monthly Fees'],
+                                monthly_fees=monthly_fees,
                                 student_type=row['Student Type']
                         ).exists():
                             failed_students.append({
@@ -215,11 +278,11 @@ def upload_file(request):
                             student = Student(
                                 admission_number=admission_number,
                                 name=row['Name'],
-                                phone=row['Phone'],
+                                phone=phone,  # Use the processed phone number
                                 course=row['Course'],
                                 section=row['Section'],
                                 branch=row['Branch'],
-                                monthly_fees=row['Monthly Fees'],
+                                monthly_fees=monthly_fees,
                                 student_type=row['Student Type']
                             )
                             student.save()
@@ -247,105 +310,67 @@ def upload_file(request):
     return render(request, 'upload_file.html', {'form': form})
 
 
+
+
 #############################################################################################################
 
 
-from django.shortcuts import render
-from django.http import HttpResponse
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.core.exceptions import ValidationError
+
+
+
 import pandas as pd
-from .forms import PaymentUploadForm
-from .models import Payment, Student
 from django.contrib.auth.models import User
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .forms import PaymentUploadForm  # Ensure you have this import for your form
+from .models import Payment, Student  # Ensure you have the correct model imports
 
 @login_required
-@user_passes_test(lambda u: u.is_staff)
+@user_passes_test(lambda u: u.is_staff)  # Ensure only admin users can access this view
 def upload_payments(request):
     if request.method == 'POST':
         form = PaymentUploadForm(request.POST, request.FILES)
         if form.is_valid():
             excel_file = request.FILES['excel_file']
             df = pd.read_excel(excel_file)  # Assuming the data is in the first sheet
-
+            
             # Process each row of the DataFrame
             for index, row in df.iterrows():
-                receipt_no = str(row.get('Receipt No', '')).strip()
-                student_admission_no = str(row.get('Student Admission No', '')).strip()
-                amount_str = str(row.get('Amount', '')).strip()
-                date_value = row.get('Date', None)
-                created_by_username = str(row.get('Created By', '')).strip()
-                receipt_type = str(row.get('Receipt Type', '')).strip()  # Adjusted column name
-                name = str(row.get('Name', '')).strip()
-                payment_method = str(row.get('Payment Method', '')).strip()
-                organization = str(row.get('Organization', '')).strip()
-                year = str(row.get('Year', '')).strip()
-                book_no = str(row.get('Book No', '')).strip()
-                # Convert amount to float and handle potential conversion errors
+                receipt_no = row['Receipt No']
+                student_admission_no = row['Student Admission No']
+                amount = row['Amount']
+                date = row['Date']
+                created_by_username = row['Created By']  # Assuming this is a username
+                
+                # Find or create the student and user
                 try:
-                    amount = float(amount_str.replace(',', ''))  # Remove commas and convert to float
-                except ValueError:
-                    print(f"Invalid amount '{amount_str}' in row {index + 1}")
-                    continue
-
-                # Convert date to datetime.date object and handle potential conversion errors
-                if pd.notna(date_value):
-                    try:
-                        date = pd.to_datetime(date_value).date()  # Convert to datetime.date
-                    except ValueError:
-                        print(f"Invalid date '{date_value}' in row {index + 1}")
-                        continue
-                else:
-                    date = None
-
-                # Check if student exists
-                if student_admission_no:
-                    try:
-                        student = Student.objects.get(admission_number=student_admission_no)
-                    except Student.DoesNotExist:
-                        print(f"Student with admission number '{student_admission_no}' does not exist in row {index + 1}")
-                        student = None
-                else:
-                    student = None
-
-                # Check if user exists
-                if created_by_username:
-                    try:
-                        created_by = User.objects.get(username=created_by_username)
-                    except User.DoesNotExist:
-                        print(f"User with username '{created_by_username}' does not exist in row {index + 1}")
-                        created_by = None
-                else:
-                    created_by = None
-
+                    student = Student.objects.get(admission_number=student_admission_no)
+                except Student.DoesNotExist:
+                    # Handle the case where the student does not exist
+                    print(f"Student with admission number {student_admission_no} does not exist.")
+                    continue  # Skip this row
+                
+                try:
+                    created_by = User.objects.get(username=created_by_username)
+                except User.DoesNotExist:
+                    # Handle the case where the user does not exist
+                    print(f"User '{created_by_username}' does not exist.")
+                    continue  # Skip this row
+                
                 # Create and save Payment instance
-                try:
-                    payment = Payment(
-                        receipt_no=receipt_no,
-                        student=student,
-                        amount=amount,
-                        date=date,
-                        created_by=created_by,
-                        receipt_type=receipt_type,
-                        name=name,
-                        payment_method=payment_method,
-                        organization=organization,
-                        year=year,
-                        book_no=book_no 
-                    )
-                    payment.save()
-                    print(f"Saved payment: {payment}")  # Print saved payment info
-                except ValidationError as e:
-                    print(f"Validation error for row {index + 1}: {e}")
-                except Exception as e:
-                    print(f"Error saving payment for row {index + 1}: {e}")
-
+                payment = Payment(
+                    receipt_no=receipt_no,
+                    student=student,
+                    amount=amount,
+                    date=date,
+                    created_by=created_by
+                )
+                payment.save()
+            
             return HttpResponse('Payments uploaded successfully')
-        else:
-            print(f"Form errors: {form.errors}")
     else:
         form = PaymentUploadForm()
-
     return render(request, 'upload_payments.html', {'form': form})
 
 
@@ -457,18 +482,21 @@ def receipt_number_input(request):
 from django.shortcuts import render, get_object_or_404
 from .models import Payment
 
-
-
 def print_receipt(request, receipt_no):
     # Retrieve the receipt using the provided receipt number
     receipt = get_object_or_404(Payment, receipt_no=receipt_no)
+    
+    # Assuming there's a relation to the Student model
+    student = getattr(receipt, 'student', None)  # Adjust this according to your actual model relationships
 
-    # Pass the receipt to the template
+    # Pass the receipt and student information to the template
     context = {
         'receipt': receipt,
+        'student': student,
     }
-
+    
     return render(request, 'print_receipt.html', context)
+
 
 
 #############################################################################################################
@@ -628,41 +656,49 @@ from django.contrib.auth.decorators import login_required
 from .forms import PaymentForm
 from .models import Payment, Student
 from django.contrib.auth.models import User
+from datetime import date
+from django.db import IntegrityError
+
+
+  # Import your models
+# Add other necessary imports like User if needed
 
 @login_required
 def make_payment(request):
     if request.method == 'POST':
         form = PaymentForm(request.POST)
         if form.is_valid():
-            admission_number = form.cleaned_data.get('admission_number')
-            amount_paid = form.cleaned_data.get('amount_paid')
-            receipt_number = form.cleaned_data.get('receipt_number')
-            book_no = form.cleaned_data.get('book_no')
-            receipt_type = form.cleaned_data.get('receipt_type') or 'Fee'  # Default to 'Fee' if not provided
-
-            # Attempt to get the student, but proceed even if the student does not exist
+            admission_number = form.cleaned_data['admission_number']
             try:
                 student = Student.objects.get(admission_number=admission_number)
             except Student.DoesNotExist:
-                student = None
+                messages.error(request, "Student not found with the provided admission number.")
+                return render(request, 'make_payment.html', {'form': form})
 
-            created_by = User.objects.get(username=request.user.username)
+            total_due = calculate_total_due(student)
+            amount_paid = form.cleaned_data['amount_paid']
+            payment_method = form.cleaned_data['payment_method']  # New field for payment method
+            payment_date = form.cleaned_data['date']  # Capture the date field
 
-            # Create the payment record
-            payment = Payment.objects.create(
-                student=student,
-                amount=amount_paid,
-                receipt_no=receipt_number,
-                book_no=book_no,
-                created_by=created_by,
-                name=student.name if student else "Unknown",
-                receipt_type=receipt_type,  # Set the receipt type from the form or default
-            )
-
-            messages.success(request, 'Payment has been recorded successfully.')
-            return redirect('payment_list')  # Replace 'payment_list' with your URL name for listing payments
-        else:
-            messages.error(request, 'There was an error with your submission.')
+            if 0 < amount_paid <= total_due:
+                receipt_number = form.cleaned_data['receipt_number']
+                created_by = request.user
+                
+                try:
+                    Payment.objects.create(
+                        student=student,
+                        amount=amount_paid,
+                        receipt_no=receipt_number,
+                        created_by=created_by,
+                        date=payment_date,
+                        payment_method=payment_method,
+                    )
+                    messages.success(request, "Payment successfully recorded!")
+                    return redirect(reverse('payment_success') + f'?admission_number={admission_number}')
+                except IntegrityError:
+                    messages.error(request, "A payment with the same receipt number already exists. Please enter a unique receipt number.")
+            else:
+                messages.error(request, "You cannot make 0 payment or more than the total due amount. Please pay the correct amount.")
     else:
         form = PaymentForm()
 
@@ -696,21 +732,22 @@ def payment_success(request):
 from django.shortcuts import render
 from django.db.models import Sum
 from .models import Student, Payment
+from decimal import Decimal
 
 def reports(request):
     # Fetch all students initially
     students = Student.objects.all()
 
-    # Get unique choices for branch and section
+    # Get unique choices for branch, section, and course
     branch_choices = Student.BRANCH_CHOICES
     section_choices = Student._meta.get_field('section').choices
-    course_choices = Student.COURSE_CHOICES  # Add this line
+    course_choices = Student.COURSE_CHOICES
 
     # Get filter parameters from the request
     course = request.GET.get('course', '')
     branch = request.GET.get('branch', '')
     section = request.GET.get('section', '')
-    months_paid = request.GET.get('months_paid', '')
+    months_due = request.GET.get('months_due', '0')
 
     # Apply filters if provided
     if course:
@@ -720,44 +757,50 @@ def reports(request):
     if section:
         students = students.filter(section=section)
 
-    # Calculate months paid for each student and filter based on the provided months_paid
-    filtered_students = []
-    if months_paid.isdigit():
-        months_paid = int(months_paid)
-        for student in students:
-            total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0
-            paid_months = total_paid / student.monthly_fees if student.monthly_fees else 0
-            if paid_months < months_paid:
-                filtered_students.append(student)
-    else:
-        filtered_students = students
-
-    # Calculate total fees paid and outstanding fees for each filtered student
+    # Initialize a list to hold additional info for each student
     additional_info = []
-    for student in filtered_students:
-        total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0
-        total_due = student.total_fees - total_paid
-        months_paid_count = total_paid / student.monthly_fees if student.monthly_fees != 0 else 0
+
+    # Convert months_due to integer for calculations
+    months_due = int(months_due) if months_due.isdigit() else 0
+
+    # Calculate total fees paid and outstanding fees for each student
+    for student in students:
+        # Ensure monthly_fees is a Decimal
+        monthly_fees = student.monthly_fees if isinstance(student.monthly_fees, Decimal) else Decimal(student.monthly_fees)
+
+        # Calculate total paid by this student
+        total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or Decimal(0)
+
+        # Calculate months paid based on total paid and monthly fees
+        months_paid = total_paid / monthly_fees if monthly_fees > 0 else 0
+        
+        # Calculate total due based on months due
+        total_due = monthly_fees * months_due - total_paid
+
+        # Append student info and financials to the additional_info list
         additional_info.append({
             'student': student,
-            'monthly_fees': student.monthly_fees,
+            'monthly_fees': monthly_fees,
             'total_fees': student.total_fees,
             'total_paid': total_paid,
             'total_due': total_due,
-            'months_paid': months_paid_count,
+            'months_paid': months_paid,
         })
 
+    # Prepare the context for rendering the template
     context = {
         'additional_info': additional_info,
         'branch_choices': branch_choices,
         'section_choices': section_choices,
-        'course_choices': course_choices,  # Add this line
+        'course_choices': course_choices,
         'course': course,
         'branch': branch,
         'selected_section': section,
-        'selected_months_paid': months_paid,
+        'selected_months_due': months_due,
     }
     return render(request, 'reports.html', context)
+
+
 
 ######################################################################################################################
 
@@ -815,3 +858,43 @@ def generate_pdf(request):
     if pisa_status.err:
         return HttpResponse('We had some errors <pre>' + html + '</pre>')
     return response
+
+
+######################################################################################################################
+
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Student
+from .forms import StudentEditForm
+
+from django.shortcuts import render
+from .models import Student
+from django.db.models import Q  # Import Q for complex queries
+
+def student_list(request):
+    query = request.GET.get('q', '')  # Get the search query from the request
+    students = Student.objects.all()  # Start with all students
+
+    if query:  # If there is a search query
+        # Filter students based on admission number, phone, or name
+        students = students.filter(
+            Q(admission_number__icontains=query) | 
+            Q(phone__icontains=query) | 
+            Q(name__icontains=query)
+        )
+
+    return render(request, 'student_list.html', {'students': students, 'query': query})
+
+
+def edit_student(request, id):
+    """View to edit student details."""
+    student = get_object_or_404(Student, admission_number=id)  # Retrieve the student using the admission number
+
+    if request.method == 'POST':
+        form = StudentEditForm(request.POST, instance=student)  # Bind the form with student data
+        if form.is_valid():
+            form.save()  # Save the updated student data
+            return redirect('student_list')  # Redirect to the student list view
+    else:
+        form = StudentEditForm(instance=student)  # Create form instance with student data for GET request
+
+    return render(request, 'edit_student.html', {'form': form})  # Render the edit student template
