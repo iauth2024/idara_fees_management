@@ -135,7 +135,7 @@ SECRET_KEY = 'your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['idara-fees-management-1.onrender.com']
 
 # Application definition
 INSTALLED_APPS = [
