@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-%eo67sj)r484)g=4l^j33-gsrdc)37^vw@i!be(z@x$+e5-&2n
 # Debug settings
 DEBUG = True
 
-ALLOWED_HOSTS = ['idara-fee-management.onrender.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['idara-fees-management.onrender.com', '127.0.0.1', 'localhost']
 
 # Application definition
 INSTALLED_APPS = [
@@ -73,11 +73,14 @@ WSGI_APPLICATION = 'idara_fees_management.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'al_ashraf_accounts',
-        'USER': 'al_ashraf_accounts_user',
-        'PASSWORD': 'xH3Hsbz8axCpVMcFuUEGOK5xhD09dkH2',
-        'HOST': 'dpg-crlrj9bv2p9s73e3b2ng-a.oregon-postgres.render.com',  # External hostname
+        'NAME': 'idara_fees_db',
+        'USER': 'idara_fees_db_user',
+        'PASSWORD': 'uNSw0b1UHZk3wkpY7DK83gsWl3PwUsSz',
+        'HOST': 'dpg-cs30943v2p9s738prar0-a.oregon-postgres.render.com',  # External hostname
         'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',  # Ensures a secure connection
+        },
     }
 }
 
