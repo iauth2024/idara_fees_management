@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-%eo67sj)r484)g=4l^j33-gsrdc)37^vw@i!be(z@x$+e5-&2n
 # Debug settings
 DEBUG = True
 
-ALLOWED_HOSTS = ['idara-fees-management.onrender.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['idara-fee-management.onrender.com', '127.0.0.1', 'localhost']
 
 # Application definition
 INSTALLED_APPS = [
