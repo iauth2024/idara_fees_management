@@ -333,31 +333,32 @@ def upload_payments(request):
         form = PaymentUploadForm(request.POST, request.FILES)
         if form.is_valid():
             excel_file = request.FILES['excel_file']
-            df = pd.read_excel(excel_file)  # Assuming the data is in the first sheet
+            df = pd.read_excel(excel_file)
             
-            # Process each row of the DataFrame
             for index, row in df.iterrows():
                 receipt_no = row['Receipt No']
                 student_admission_no = row['Student Admission No']
                 amount = row['Amount']
                 date = row['Date']
-                created_by_username = row['Created By']  # Assuming this is a username
+                created_by_username = row['Created By']
                 
-                # Find or create the student and user
                 try:
                     student = Student.objects.get(admission_number=student_admission_no)
                 except Student.DoesNotExist:
-                    # Handle the case where the student does not exist
                     print(f"Student with admission number {student_admission_no} does not exist.")
-                    continue  # Skip this row
+                    continue
                 
                 try:
                     created_by = User.objects.get(username=created_by_username)
                 except User.DoesNotExist:
-                    # Handle the case where the user does not exist
                     print(f"User '{created_by_username}' does not exist.")
+                    continue
+
+                # Check for duplicate receipt_no
+                if Payment.objects.filter(receipt_no=receipt_no).exists():
+                    print(f"Receipt No {receipt_no} already exists. Skipping...")
                     continue  # Skip this row
-                
+
                 # Create and save Payment instance
                 payment = Payment(
                     receipt_no=receipt_no,
