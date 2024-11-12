@@ -147,6 +147,8 @@
                 <tr>
                     <th>Branch</th>
                     <th>Paid Amount</th>
+                    <th>No. of Students</th>
+                    <th>Total Due</th>
                 </tr>
             </thead>
             <tbody>
@@ -154,10 +156,12 @@
                     <tr>
                         <td>{{ branch.student__branch }}</td>
                         <td>{{ branch.total|indian_number_format }}</td>
+                        <td>{{ branch.number_of_students }}</td>
+                        <td>{{ branch.due_amount|indian_number_format }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="2">No data available</td>
+                        <td colspan="4">No data available</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -171,6 +175,7 @@
                 <tr>
                     <th>User</th>
                     <th>Entered Amount</th>
+                    <th>No. of Entries</th>
                 </tr>
             </thead>
             <tbody>
@@ -178,10 +183,11 @@
                     <tr>
                         <td>{{ user.created_by__username }}</td>
                         <td>{{ user.total|indian_number_format }}</td>
+                        <td>{{ user.number_of_entries }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="2">No data available</td>
+                        <td colspan="3">No data available</td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -195,6 +201,8 @@
                 <tr>
                     <th>Class</th>
                     <th>Paid Amount</th>
+                    <th>No. of Students</th>
+                    <th>Total Due</th>
                 </tr>
             </thead>
             <tbody>
@@ -202,10 +210,12 @@
                     <tr>
                         <td>{{ class.student__section }}</td>
                         <td>{{ class.total|indian_number_format }}</td>
+                        <td>{{ class.number_of_students }}</td>
+                        <td>{{ class.due_amount|indian_number_format }}</td>
                     </tr>
                 {% empty %}
                     <tr>
-                        <td colspan="2">No data available</td>
+                        <td colspan="4">No data available</td>
                     </tr>
                 {% endfor %}
             </tbody>

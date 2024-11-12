@@ -2,9 +2,6 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from django.db import models
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
 
 
 class Student(models.Model):
@@ -56,6 +53,7 @@ class Student(models.Model):
         ('Duwwam School (Baa)', 'دوم اسکول (ب)'),
         ('Suwwam', 'سوم'),
         ('Chahrum', 'چهارم'),
+        ('Daal', 'د'),
         ('Hifz-Alif', 'Hifz-Alif'),
         ('Hifz-Baa', 'Hifz-Baa'),
         ('Hifz-Jeem', 'Hifz-Jeem'),
@@ -103,7 +101,7 @@ class Payment(models.Model):
     receipt_no = models.CharField(max_length=20, null=False, blank=False, unique=True)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, null=True, blank=True)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField()
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     receipt_type = models.CharField(max_length=15, choices=RECEIPT_TYPE_CHOICES, default='fee')
     name = models.CharField(max_length=255, null=True, blank=True)

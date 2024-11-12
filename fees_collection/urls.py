@@ -43,7 +43,7 @@ urlpatterns = [
     path('upload/', upload_file, name='upload_file'),
     path('download-payments/', download_payments, name='download_payments'),
     path('upload-payments/', upload_payments, name='upload_payments'),
-    path('download_students/', views.download_students_page, name='download_students_page'),
+    path('download_students/', views.download_students, name='download_students'),
     path('process_download_students/', download_students, name='process_download_students'),
 
     # Reports

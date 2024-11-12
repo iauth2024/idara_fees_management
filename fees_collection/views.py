@@ -214,6 +214,14 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 import pandas as pd
 
+import pandas as pd
+from decimal import Decimal, InvalidOperation
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+from .forms import UploadFileForm
+from .models import Student
+
 @login_required
 @user_passes_test(lambda u: u.is_staff)
 def upload_file(request):
@@ -221,14 +229,16 @@ def upload_file(request):
         form = UploadFileForm(request.POST, request.FILES)
         if form.is_valid():
             file = request.FILES['file']
-            if file.name.endswith('.xlsx'):
+            if file.name.endswith('.xlsx'):  # Check for Excel file type
                 df = pd.read_excel(file)
                 success_students = []
                 failed_students = []
                 already_exists_students = []
 
                 # Ensure expected columns are present
-                required_columns = ['Admission Number', 'Name', 'Phone', 'Course', 'Section', 'Branch', 'Monthly Fees', 'Student Type']
+                required_columns = [
+                    'Admission Number', 'Name', 'Father Name', 'Phone', 'Course', 'Section', 'Branch', 'Monthly Fees', 'Student Type'
+                ]
                 if not all(col in df.columns for col in required_columns):
                     return render(request, 'upload_result.html', {
                         'error': 'The uploaded file is missing one or more required columns.'
@@ -253,6 +263,7 @@ def upload_file(request):
                         })
                         continue  # Skip to the next row if there's an error
 
+                    # Check if the student already exists by admission number
                     if Student.objects.filter(admission_number=admission_number).exists():
                         already_exists_students.append({
                             'admission_number': admission_number,
@@ -260,6 +271,7 @@ def upload_file(request):
                             'reason': 'Already Exists'
                         })
                     else:
+                        # Check for duplicates based on other fields
                         if Student.objects.exclude(admission_number=admission_number).filter(
                                 name=row['Name'],
                                 phone=phone,  # Use the processed phone number
@@ -275,9 +287,11 @@ def upload_file(request):
                                 'reason': 'Duplicate Number'
                             })
                         else:
+                            # Create a new student record and save
                             student = Student(
                                 admission_number=admission_number,
                                 name=row['Name'],
+                                father_name=row['Father Name'],  # Add Father Name
                                 phone=phone,  # Use the processed phone number
                                 course=row['Course'],
                                 section=row['Section'],
@@ -288,6 +302,7 @@ def upload_file(request):
                             student.save()
                             success_students.append(student)
 
+                # Calculate totals
                 total_students_to_upload = len(df)
                 already_exists_no = len(already_exists_students)
                 failed_no = len(failed_students)
@@ -304,10 +319,10 @@ def upload_file(request):
                     'failed_students': failed_students,
                     'success_students': success_students,
                 })
-
     else:
         form = UploadFileForm()
     return render(request, 'upload_file.html', {'form': form})
+
 
 
 
@@ -445,32 +460,58 @@ from openpyxl import Workbook
 from io import BytesIO
 from .models import Student
 
+from io import BytesIO
+from openpyxl import Workbook
+from django.http import HttpResponse
+from .models import Student
+
+# views.py
+from django.http import HttpResponse
+from openpyxl import Workbook
+from io import BytesIO
+from .models import Student
+
 def download_students(request):
-    course = request.GET.get('course')
-    branch = request.GET.get('branch')
-
+    # Fetch all students from the database
     students = Student.objects.all()
-    if course:
-        students = students.filter(course=course)
-    if branch:
-        students = students.filter(branch=branch)
 
+    # Create a workbook and select the active worksheet
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = 'Students'
 
-    headers = ['Admission Number', 'Name', 'Phone', 'Course', 'Branch', 'Monthly Fees']
+    # Write the header row (including Father Name)
+    headers = [
+        'Admission Number', 'Name', 'Father Name', 'Phone', 'Course', 'Section', 'Branch', 'Monthly Fees', 'Student Type'
+    ]
     sheet.append(headers)
 
+    # Write the student data rows (including Father Name)
     for student in students:
-        sheet.append([student.admission_number, student.name, student.phone, student.course, student.branch, student.monthly_fees])
+        sheet.append([
+            student.admission_number,  # Admission Number
+            student.name,              # Name
+            student.father_name,       # Father Name
+            student.phone,             # Phone
+            student.course,            # Course
+            student.section,           # Section
+            student.branch,            # Branch
+            student.monthly_fees,      # Monthly Fees
+            student.student_type       # Student Type
+        ])
 
+    # Create the HTTP response with Excel file content type
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="students.xlsx"'
+
+    # Save the workbook to the response
     with BytesIO() as buffer:
         workbook.save(buffer)
         buffer.seek(0)
-        response = HttpResponse(buffer, content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = 'attachment; filename=students.xlsx'
-        return response
+        response.write(buffer.read())  # Write the content of the workbook to the response
+
+    return response
+
 from django.shortcuts import render, redirect
 from django.urls import reverse
 
@@ -735,14 +776,27 @@ from django.db.models import Sum
 from .models import Student, Payment
 from decimal import Decimal
 
-def reports(request):
-    # Fetch all students initially
-    students = Student.objects.all()
+from decimal import Decimal
+from django.db.models import Sum
+from django.shortcuts import render
+from .models import Student, Payment
 
-    # Get unique choices for branch, section, and course
-    branch_choices = Student.BRANCH_CHOICES
-    section_choices = Student._meta.get_field('section').choices
-    course_choices = Student.COURSE_CHOICES
+def reports(request):
+    # Get all students and distinct choices for branches, courses, and sections
+    students = Student.objects.all()
+    branches = Student.objects.values('branch').distinct()
+    organized_data = {}
+
+    # Organize courses and sections within each branch
+    for branch in branches:
+        branch_name = branch['branch']
+        courses = Student.objects.filter(branch=branch_name).values('course').distinct()
+        organized_data[branch_name] = {}
+
+        for course in courses:
+            course_name = course['course']
+            sections = Student.objects.filter(branch=branch_name, course=course_name).values('section').distinct()
+            organized_data[branch_name][course_name] = [section['section'] for section in sections]
 
     # Get filter parameters from the request
     course = request.GET.get('course', '')
@@ -750,35 +804,28 @@ def reports(request):
     section = request.GET.get('section', '')
     months_due = request.GET.get('months_due', '0')
 
-    # Apply filters if provided
-    if course:
-        students = students.filter(course=course)
+    # Apply filters based on selected branch, course, and section
     if branch:
         students = students.filter(branch=branch)
+    if course:
+        students = students.filter(course=course)
     if section:
         students = students.filter(section=section)
 
-    # Initialize a list to hold additional info for each student
-    additional_info = []
-
     # Convert months_due to integer for calculations
-    months_due = int(months_due) if months_due.isdigit() else 0
+    try:
+        months_due = int(months_due)
+    except ValueError:
+        months_due = 0
 
-    # Calculate total fees paid and outstanding fees for each student
+    # Calculate financial details for each student
+    additional_info = []
     for student in students:
-        # Ensure monthly_fees is a Decimal
-        monthly_fees = student.monthly_fees if isinstance(student.monthly_fees, Decimal) else Decimal(student.monthly_fees)
-
-        # Calculate total paid by this student
+        monthly_fees = Decimal(student.monthly_fees)
         total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or Decimal(0)
-
-        # Calculate months paid based on total paid and monthly fees
         months_paid = total_paid / monthly_fees if monthly_fees > 0 else 0
-        
-        # Calculate total due based on months due
-        total_due = monthly_fees * months_due - total_paid
+        total_due = (monthly_fees * months_due) - total_paid
 
-        # Append student info and financials to the additional_info list
         additional_info.append({
             'student': student,
             'monthly_fees': monthly_fees,
@@ -791,37 +838,32 @@ def reports(request):
     # Prepare the context for rendering the template
     context = {
         'additional_info': additional_info,
-        'branch_choices': branch_choices,
-        'section_choices': section_choices,
-        'course_choices': course_choices,
-        'course': course,
-        'branch': branch,
+        'organized_data': organized_data,  # Organized data for branches, courses, and sections
+        'selected_branch': branch,
+        'selected_course': course,
         'selected_section': section,
-        'selected_months_due': months_due,
+        'selected_months_due': months_due,  # Include months_due in the context
     }
     return render(request, 'reports.html', context)
-
-
 
 ######################################################################################################################
 
 
 from django.http import HttpResponse
 from django.template.loader import get_template
-from xhtml2pdf import pisa  # type: ignore
+from xhtml2pdf import pisa # type: ignore
 from .models import Student, Payment
 from django.db.models import Sum
+from django.templatetags.static import static
 
 def generate_pdf(request):
-    # Generate the PDF
+    # Fetch and filter students
     students = Student.objects.all()
-    # Get filter parameters from the request
     course = request.GET.get('course', '')
     branch = request.GET.get('branch', '')
     section = request.GET.get('section', '')
     months_paid = request.GET.get('months_paid', '')
 
-    # Apply filters if provided
     if course:
         students = students.filter(course=course)
     if branch:
@@ -832,6 +874,7 @@ def generate_pdf(request):
         months_paid = int(months_paid)
         students = [student for student in students if (Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0) / student.monthly_fees >= months_paid]
 
+    # Prepare additional student information for the context
     additional_info = []
     for student in students:
         total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or 0
@@ -846,16 +889,32 @@ def generate_pdf(request):
             'months_paid': months_paid_count,
         })
 
+    # Context for template rendering
     context = {
         'additional_info': additional_info,
     }
 
+    # Load template and render it with context
     template_path = 'pdf_template.html'
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = 'attachment; filename="report.pdf"'
     template = get_template(template_path)
     html = template.render(context)
-    pisa_status = pisa.CreatePDF(html, dest=response)
+
+    # Prepare response for PDF
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = 'attachment; filename="report.pdf"'
+
+    # Add a callback for static files to ensure font access
+    def link_callback(uri, rel):
+        if uri.startswith("static/"):
+            return static(uri)
+        return uri
+
+    # Generate PDF with Unicode support (UTF-8 encoding)
+    pisa_status = pisa.CreatePDF(
+        html, dest=response, encoding='UTF-8', link_callback=link_callback
+    )
+
+    # Error handling for PDF generation
     if pisa_status.err:
         return HttpResponse('We had some errors <pre>' + html + '</pre>')
     return response
@@ -886,6 +945,8 @@ def student_list(request):
     return render(request, 'student_list.html', {'students': students, 'query': query})
 
 
+from django.contrib import messages  # Import Django messages
+
 def edit_student(request, id):
     """View to edit student details."""
     student = get_object_or_404(Student, admission_number=id)  # Retrieve the student using the admission number
@@ -894,8 +955,10 @@ def edit_student(request, id):
         form = StudentEditForm(request.POST, instance=student)  # Bind the form with student data
         if form.is_valid():
             form.save()  # Save the updated student data
+            messages.success(request, 'Student details updated successfully.')  # Add a success message
             return redirect('student_list')  # Redirect to the student list view
     else:
         form = StudentEditForm(instance=student)  # Create form instance with student data for GET request
 
     return render(request, 'edit_student.html', {'form': form})  # Render the edit student template
+

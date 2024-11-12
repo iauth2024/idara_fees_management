@@ -14,6 +14,21 @@
             text-align: center;
         }
 
+        /* Styling for success message */
+        .alert-success {
+            color: #21c046;
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 18px; /* Increased font size */
+            width: 80%;
+            margin: 20px auto;
+            text-align: center;
+            font-weight: bold;
+            max-width: 600px;
+        }
+
         form {
             text-align: center;
             margin-bottom: 20px;
@@ -72,6 +87,17 @@
 
     <h1>Student List</h1>
 
+    <!-- Success Message -->
+    {% if messages %}
+        <div id="success-message">
+            {% for message in messages %}
+                <div class="alert-success">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
     <!-- Search Form -->
     <form method="GET" action="{% url 'student_list' %}">
         <input type="text" name="q" value="{{ query }}" placeholder="Search by Admission Number, Phone, or Name">
@@ -116,4 +142,14 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <script>
+        // Auto-hide success message after 3 seconds
+        setTimeout(function() {
+            const successMessage = document.getElementById('success-message');
+            if (successMessage) {
+                successMessage.style.display = 'none';
+            }
+        }, 3000);
+    </script>
 {% endblock %}

@@ -2,12 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Report PDF</title>
     <style>
+        @font-face {
+            font-family: 'Amiri';
+            src: url('{{ STATIC_URL }}fonts/Amiri-Regular.ttf') format('truetype');
+        }
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Amiri', sans-serif;
+            direction: rtl; /* For right-to-left languages */
         }
         table {
             width: 100%;
@@ -16,14 +19,7 @@
         }
         th, td {
             border: 1px solid #dddddd;
-            text-align: left;
             padding: 8px;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
         }
     </style>
 </head>
@@ -34,9 +30,11 @@
             <tr>
                 <th>Admission Number</th>
                 <th>Name</th>
+                <th>Father's Name</th>
+                <th>Phone</th>
                 <th>Course</th>
                 <th>Branch</th>
-                <th>Class</th>
+                <th>Section</th>
                 <th>Monthly Fees</th>
                 <th>Total Fees</th>
                 <th>Total Paid</th>
@@ -49,9 +47,11 @@
             <tr>
                 <td>{{ item.student.admission_number }}</td>
                 <td>{{ item.student.name }}</td>
+                <td>{{ item.student.father_name }}</td>
+                <td>{{ item.student.phone }}</td>
                 <td>{{ item.student.course }}</td>
                 <td>{{ item.student.branch }}</td>
-                <td>{{ item.student.class_darja }}</td>
+                <td>{{ item.student.section }}</td>
                 <td>{{ item.monthly_fees }}</td>
                 <td>{{ item.total_fees }}</td>
                 <td>{{ item.total_paid }}</td>

@@ -46,6 +46,59 @@
             background-color: #f2f2f2;
             color: #333;
         }
+
+        /* A5 Page Print Styles */
+        @media print {
+            body {
+                background-color: #fff;
+                margin: 0;
+                padding: 0;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 15px;
+            }
+
+            div {
+                box-shadow: none;
+                border: 1px solid #ddd;
+                padding: 15px;
+                margin: 10px;
+            }
+
+            h2 {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 10px;
+            }
+
+            th, td {
+                padding: 6px;
+                font-size: 12px;
+            }
+
+            th {
+                background-color: #f2f2f2;
+                color: #333;
+            }
+
+            /* A5 page size - portrait orientation */
+            @page {
+                size: A5;
+                margin: 10mm;
+            }
+
+            /* Remove extra spacing on the page for print */
+            .messages, h1, table {
+                page-break-after: always;
+            }
+        }
     </style>
 </head>
 <body>
