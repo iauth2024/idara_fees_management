@@ -666,26 +666,42 @@ from django.contrib.admin.views.decorators import staff_member_required
 from django.http import HttpResponse
 from .models import Payment
 
+import openpyxl
+from django.http import HttpResponse
+from openpyxl import Workbook
+from .models import Payment
+
 @login_required
 @staff_member_required  # Ensures only staff members can access the view
 def download_payments(request):
     payments = Payment.objects.all()
 
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="payments.csv"'
+    # Create an Excel workbook and sheet
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Payments"
 
-    writer = csv.writer(response)
-    writer.writerow(['Receipt No', 'Student Admission No', 'Student Name', 'Amount', 'Date', 'Created By'])
+    # Write header row
+    headers = ['Receipt No', 'Student Admission No', 'Student Name', 'Amount', 'Date', 'Created By']
+    sheet.append(headers)
 
+    # Write data rows
     for payment in payments:
-        writer.writerow([
+        sheet.append([
             payment.receipt_no,
             payment.student.admission_number if payment.student else '',
             payment.student.name if payment.student else '',
             payment.amount,
-            payment.date,
+            payment.date.strftime('%Y-%m-%d') if payment.date else '',  # Format date to 'YYYY-MM-DD'
             payment.created_by.username if payment.created_by else ''  # Use username if available, else empty string
         ])
+
+    # Prepare the response with appropriate content type for Excel
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="payments.xlsx"'
+
+    # Save the workbook to the response
+    workbook.save(response)
 
     return response
 
