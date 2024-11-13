@@ -45,6 +45,7 @@ urlpatterns = [
     path('upload-payments/', upload_payments, name='upload_payments'),
     path('download_students/', views.download_students, name='download_students'),
     path('process_download_students/', download_students, name='process_download_students'),
+    path('payment-list/', views.payment_list, name='payment_list'),
 
     # Reports
     path('summary/', summary, name='summary'),

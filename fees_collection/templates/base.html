@@ -99,6 +99,23 @@
         h2 {
             color: #17a2b8;
         }
+
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007bff;
+            border-radius: 5px;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -132,10 +149,16 @@
             <li><a href="{% url 'reports' %}">Reports</a></li>
             <li><a href="{% url 'receipt_number_input' %}" class="print-receipt-button">Print Receipt</a></li>
             <li><a href="{% url 'student_list' %}">Students</a></li> <!-- Added link to student list -->
+            <!-- Button to Payment List -->
+            <li><a href="{% url 'payment_list' %}">Payment List</a></li>
+
         </ul>
     </div>
 
     <div class="content">
+        <!-- Button inside content -->
+        <a href="{% url 'payment_list' %}" class="btn">View Payment List</a>
+
         {% block content %}
         <!-- Page content will be inserted here -->
         {% endblock %}

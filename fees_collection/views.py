@@ -341,6 +341,13 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from .forms import PaymentUploadForm  # Ensure you have this import for your form
 from .models import Payment, Student  # Ensure you have the correct model imports
 
+from django.shortcuts import render
+from django.http import HttpResponse
+from django.contrib.auth.decorators import login_required, user_passes_test
+import pandas as pd
+from .models import Payment, Student, User  # Ensure you import the correct models
+from .forms import PaymentUploadForm
+
 @login_required
 @user_passes_test(lambda u: u.is_staff)  # Ensure only admin users can access this view
 def upload_payments(request):
@@ -349,13 +356,14 @@ def upload_payments(request):
         if form.is_valid():
             excel_file = request.FILES['excel_file']
             df = pd.read_excel(excel_file)
-            
+
             for index, row in df.iterrows():
                 receipt_no = row['Receipt No']
                 student_admission_no = row['Student Admission No']
                 amount = row['Amount']
                 date = row['Date']
                 created_by_username = row['Created By']
+                payment_method = row['Payment Method']  # Fetch payment method from the Excel file
                 
                 try:
                     student = Student.objects.get(admission_number=student_admission_no)
@@ -374,16 +382,22 @@ def upload_payments(request):
                     print(f"Receipt No {receipt_no} already exists. Skipping...")
                     continue  # Skip this row
 
+                # Check if the payment_method is valid (it must be one of the choices)
+                if payment_method not in ['cash', 'online']:  # Assuming 'cash' and 'online' are the choices
+                    print(f"Invalid payment method '{payment_method}' for receipt {receipt_no}. Skipping...")
+                    continue
+
                 # Create and save Payment instance
                 payment = Payment(
                     receipt_no=receipt_no,
                     student=student,
                     amount=amount,
                     date=date,
-                    created_by=created_by
+                    created_by=created_by,
+                    payment_method=payment_method  # Include payment_method
                 )
                 payment.save()
-            
+
             return HttpResponse('Payments uploaded successfully')
     else:
         form = PaymentUploadForm()
@@ -706,7 +720,33 @@ def download_payments(request):
     return response
 
 #########################################################################################################################
+from django.shortcuts import render
+from django.db.models import Q
 
+
+from django.shortcuts import render
+from django.db.models import Q
+from fees_collection.models import Payment  # Import the correct model
+
+def payment_list(request):
+    query = request.GET.get('q', '')  # Get the search query from the request
+    payments = Payment.objects.all().order_by('-date')  # Correctly refer to the model Payment
+
+    if query:  # If there is a search query
+        # Filter payments based on receipt no, student name, or payment method
+        payments = payments.filter(
+            Q(receipt_no__icontains=query) |  # Correct field name: receipt_no
+            Q(student__name__icontains=query) |   # Filter by student name
+            Q(payment_method__icontains=query)      # Filter by payment method (optional)
+        )
+
+    return render(request, 'payment_list.html', {'payments': payments, 'query': query})
+
+
+
+
+
+#############################################################################################################################
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
