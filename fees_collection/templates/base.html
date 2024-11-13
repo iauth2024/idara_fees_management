@@ -150,13 +150,14 @@
             <li><a href="{% url 'receipt_number_input' %}" class="print-receipt-button">Print Receipt</a></li>
             <li><a href="{% url 'student_list' %}">Students</a></li> <!-- Added link to student list -->
             <!-- Button to Payment List -->
-            <li><a href="{% url 'payment_list' %}">Receipts List</a></li>
+            <li><a href="{% url 'payment_list' %}">Payment List</a></li>
+
         </ul>
     </div>
 
     <div class="content">
         <!-- Button inside content -->
-        <a href="{% url 'payment_list' %}" class="btn">View Payment List</a>
+    
 
         {% block content %}
         <!-- Page content will be inserted here -->
