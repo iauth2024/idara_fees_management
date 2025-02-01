@@ -160,10 +160,10 @@
         <div class="student-details">
             <p><strong>Student Name:</strong> {{ student.name }}</p>
             <p><strong>Admission Number:</strong> {{ student.admission_number }}</p>
-            <p><strong>Monthly Fee:</strong> ₹ {{ student.monthly_fees|indian_number_format }}</p>
-            <p><strong>Total Fee:</strong> ₹ {{ total_fee|indian_number_format }}</p>
-            <p style="color: rgb(5, 154, 50); font-weight: bold; font-family: Arial, sans-serif;"><strong>Total Paid:</strong> ₹ {{ total_paid|indian_number_format }}</p>
-            <p style="color: rgb(255, 85, 0); font-weight: bold; font-family: Arial, sans-serif;"><strong>Fee Due:</strong> ₹ {{ fee_due|indian_number_format }}</p>
+            <p><strong>Monthly Contibution:</strong> ₹ {{ student.monthly_fees|indian_number_format }}</p>
+            <p><strong>Total Contibution:</strong> ₹ {{ total_fee|indian_number_format }}</p>
+            <p style="color: rgb(5, 154, 50); font-weight: bold; font-family: Arial, sans-serif;"><strong>Paid Contibution:</strong> ₹ {{ total_paid|indian_number_format }}</p>
+            <p style="color: rgb(255, 85, 0); font-weight: bold; font-family: Arial, sans-serif;"><strong>Contibution Due:</strong> ₹ {{ fee_due|indian_number_format }}</p>
         </div>
         <div class="payment-details">
             <h2>Payment Details</h2>
