@@ -875,7 +875,8 @@ def reports(request):
         monthly_fees = Decimal(student.monthly_fees)
         total_paid = Payment.objects.filter(student=student).aggregate(Sum('amount'))['amount__sum'] or Decimal(0)
         months_paid = total_paid / monthly_fees if monthly_fees > 0 else 0
-        total_due = (monthly_fees * months_due) - total_paid
+        total_due = (monthly_fees * 12) - total_paid
+
 
         additional_info.append({
             'student': student,
